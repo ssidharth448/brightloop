@@ -8,7 +8,19 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import auth, customers, dashboard, invoices, payments, plans, products, subscriptions
+from app.routes import (
+    auth,
+    customers,
+    dashboard,
+    discounts,
+    invoices,
+    payments,
+    plans,
+    portal,
+    products,
+    quotations,
+    subscriptions,
+)
 
 
 @asynccontextmanager
@@ -51,6 +63,10 @@ app.include_router(subscriptions.router)
 app.include_router(invoices.router)
 app.include_router(payments.router)
 app.include_router(dashboard.router)
+# New feature routers
+app.include_router(portal.router)
+app.include_router(discounts.router)
+app.include_router(quotations.router)
 
 
 @app.get("/", tags=["Health"])

@@ -1,6 +1,9 @@
-"""Invoice routes — generation and retrieval."""
+"""Invoice routes — generation, retrieval, actions, billing, and overdue detection."""
+
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -8,12 +11,19 @@ from app.core.dependencies import require_active_user
 from app.models.user import User
 from app.schemas.invoice import InvoiceCreate, InvoiceOut
 from app.services.invoice_service import (
+    cancel_invoice,
+    check_overdue_invoices,
     compute_amount_paid,
     compute_outstanding,
+    confirm_invoice,
     create_invoice,
     get_invoice,
+    get_overdue_summary,
     list_invoices,
+    render_invoice_html,
+    send_invoice,
 )
+from app.services.billing_service import generate_due_invoices
 
 router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
 
@@ -80,3 +90,95 @@ def get_invoice_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
         )
     return _enrich(invoice, db=db)
+
+
+# ---------- Invoice actions ----------
+
+@router.post("/{invoice_id}/confirm", response_model=InvoiceOut)
+def confirm_invoice_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_active_user),
+):
+    """Confirm a draft invoice (draft → issued)."""
+    try:
+        invoice = confirm_invoice(db, invoice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return _enrich(invoice, db=db)
+
+
+@router.post("/{invoice_id}/cancel", response_model=InvoiceOut)
+def cancel_invoice_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_active_user),
+):
+    """Cancel an invoice."""
+    try:
+        invoice = cancel_invoice(db, invoice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return _enrich(invoice, db=db)
+
+
+@router.post("/{invoice_id}/send")
+def send_invoice_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_active_user),
+):
+    """Simulate sending the invoice to the customer."""
+    try:
+        result = send_invoice(db, invoice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return result
+
+
+@router.get("/{invoice_id}/html", response_class=HTMLResponse)
+def print_invoice_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_active_user),
+):
+    """Return a printable HTML view of the invoice."""
+    try:
+        html = render_invoice_html(db, invoice_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    return HTMLResponse(content=html)
+
+
+# ---------- Bulk billing ----------
+
+@router.post("/generate-due")
+def generate_due_invoices_route(
+    target_date: date | None = Query(None, description="Generate invoices due on or before this date (default: today)"),
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_active_user),
+):
+    """Bulk-generate invoices for all active subscriptions due on or before target_date."""
+    invoices = generate_due_invoices(db, target_date)
+    return {
+        "message": f"Generated {len(invoices)} invoice(s)",
+        "count": len(invoices),
+        "invoices": [_enrich(inv, db=db) for inv in invoices],
+    }
+
+
+# ---------- Overdue detection ----------
+
+@router.post("/check-overdue")
+def check_overdue_route(
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_active_user),
+):
+    """Scan for overdue invoices and mark them accordingly."""
+    overdue = check_overdue_invoices(db)
+    summary = get_overdue_summary(db)
+    return {
+        "message": f"Found {len(overdue)} newly overdue invoice(s)",
+        "newly_overdue_count": len(overdue),
+        **summary,
+    }

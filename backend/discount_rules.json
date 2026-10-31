@@ -1,0 +1,18 @@
+[
+  {
+    "code": "ONCE",
+    "description": "",
+    "discount_type": "fixed",
+    "value": "25",
+    "min_purchase": "0.00",
+    "min_quantity": 0,
+    "start_date": null,
+    "end_date": null,
+    "max_uses": 1,
+    "product_id": null,
+    "applies_to": "all",
+    "id": "858a698c",
+    "used_count": 1,
+    "is_active": true
+  }
+]

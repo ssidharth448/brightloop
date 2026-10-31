@@ -167,3 +167,230 @@ def update_invoice_status_after_payment(db: Session, invoice: Invoice) -> None:
         pass
     db.commit()
     db.refresh(invoice)
+
+
+# ---------- Invoice actions ----------
+
+def confirm_invoice(db: Session, invoice_id: int) -> Invoice:
+    """Transition an invoice from draft -> issued."""
+    invoice = db.get(Invoice, invoice_id)
+    if invoice is None:
+        raise ValueError("Invoice not found")
+    if invoice.status != "draft":
+        raise ValueError(f"Cannot confirm invoice in '{invoice.status}' status (must be 'draft')")
+    invoice.status = "issued"
+    db.commit()
+    db.refresh(invoice)
+    return invoice
+
+
+def cancel_invoice(db: Session, invoice_id: int) -> Invoice:
+    """Cancel an invoice (from draft or issued status)."""
+    invoice = db.get(Invoice, invoice_id)
+    if invoice is None:
+        raise ValueError("Invoice not found")
+    if invoice.status in ("paid", "cancelled"):
+        raise ValueError(f"Cannot cancel invoice in '{invoice.status}' status")
+    invoice.status = "cancelled"
+    db.commit()
+    db.refresh(invoice)
+    return invoice
+
+
+def send_invoice(db: Session, invoice_id: int) -> dict:
+    """Simulate sending an invoice to the customer via email.
+
+    In production this would dispatch an actual email.
+    Returns a confirmation dict.
+    """
+    invoice = db.get(Invoice, invoice_id)
+    if invoice is None:
+        raise ValueError("Invoice not found")
+    if invoice.status == "draft":
+        # Auto-confirm before sending
+        invoice.status = "issued"
+        db.commit()
+        db.refresh(invoice)
+    customer_name = invoice.customer.name if invoice.customer else "Customer"
+    customer_email = invoice.customer.email if invoice.customer else "unknown"
+    return {
+        "message": f"Invoice {invoice.invoice_number} sent to {customer_name} ({customer_email})",
+        "invoice_id": invoice.id,
+        "invoice_number": invoice.invoice_number,
+        "recipient_email": customer_email,
+        "status": "sent",
+    }
+
+
+def render_invoice_html(db: Session, invoice_id: int) -> str:
+    """Render a printable HTML view of an invoice."""
+    invoice = db.get(Invoice, invoice_id)
+    if invoice is None:
+        raise ValueError("Invoice not found")
+
+    customer = invoice.customer
+    items_html = ""
+    for item in invoice.items:
+        items_html += f"""
+        <tr>
+            <td style="padding:8px;border:1px solid #ddd">{item.description}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center">{item.quantity}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right">{item.unit_price:.2f}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right">{item.line_total:.2f}</td>
+        </tr>"""
+
+    cust_name = customer.name if customer else "N/A"
+    cust_email = customer.email if customer else ""
+    cust_addr = customer.billing_address or "" if customer else ""
+    cust_city = customer.city if customer else None
+    cust_state = customer.state if customer else None
+    cust_postal = customer.postal_code if customer else None
+    cust_country = customer.country if customer else ""
+    city_line = ", ".join(filter(None, [cust_city, cust_state, cust_postal]))
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice {invoice.invoice_number}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 40px; color: #333; }}
+        .header {{ display: flex; justify-content: space-between; margin-bottom: 30px; }}
+        .company {{ font-size: 24px; font-weight: bold; color: #2563eb; }}
+        .invoice-title {{ font-size: 20px; color: #666; }}
+        .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }}
+        .info-box {{ padding: 15px; background: #f9fafb; border-radius: 8px; }}
+        .info-box h3 {{ margin: 0 0 8px 0; font-size: 14px; color: #666; text-transform: uppercase; }}
+        table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+        th {{ padding: 10px 8px; background: #2563eb; color: white; text-align: left; }}
+        .totals {{ text-align: right; margin-top: 20px; }}
+        .totals td {{ padding: 6px 12px; }}
+        .totals .grand-total {{ font-size: 18px; font-weight: bold; color: #2563eb; }}
+        .status {{ display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px;
+                   font-weight: bold; text-transform: uppercase; }}
+        .status-draft {{ background: #fef3c7; color: #92400e; }}
+        .status-issued {{ background: #dbeafe; color: #1e40af; }}
+        .status-paid {{ background: #d1fae5; color: #065f46; }}
+        .status-overdue {{ background: #fee2e2; color: #991b1b; }}
+        .status-cancelled {{ background: #f3f4f6; color: #6b7280; }}
+        .footer {{ margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;
+                   font-size: 12px; color: #888; text-align: center; }}
+        @media print {{ body {{ margin: 20px; }} }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <div class="company">Brightloop</div>
+            <div style="color:#666">Subscription Management System</div>
+        </div>
+        <div style="text-align:right">
+            <div class="invoice-title">INVOICE</div>
+            <div style="font-size:18px;font-weight:bold">{invoice.invoice_number}</div>
+            <span class="status status-{invoice.status}">{invoice.status}</span>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>Bill To</h3>
+            <strong>{cust_name}</strong><br>
+            {cust_email}<br>
+            {cust_addr}<br>
+            {city_line}<br>
+            {cust_country}
+        </div>
+        <div class="info-box">
+            <h3>Invoice Details</h3>
+            <strong>Issue Date:</strong> {invoice.issue_date}<br>
+            <strong>Due Date:</strong> {invoice.due_date}<br>
+            <strong>Currency:</strong> {invoice.currency}<br>
+            {f'<strong>Subscription:</strong> #{invoice.subscription_id}' if invoice.subscription_id else ''}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th style="text-align:center">Qty</th>
+                <th style="text-align:right">Unit Price</th>
+                <th style="text-align:right">Amount</th>
+            </tr>
+        </thead>
+        <tbody>{items_html}
+        </tbody>
+    </table>
+
+    <table class="totals" style="width:300px;margin-left:auto">
+        <tr><td>Subtotal:</td><td>{invoice.currency} {invoice.subtotal:.2f}</td></tr>
+        <tr><td>Discount:</td><td>-{invoice.currency} {invoice.discount_amount:.2f}</td></tr>
+        <tr><td>Tax:</td><td>{invoice.currency} {invoice.tax_amount:.2f}</td></tr>
+        <tr style="border-top:2px solid #333">
+            <td class="grand-total">Total:</td>
+            <td class="grand-total">{invoice.currency} {invoice.total_amount:.2f}</td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        <p>Thank you for your business! &mdash; Brightloop Subscription Management</p>
+        <p>This is a computer-generated invoice. No signature required.</p>
+    </div>
+</body>
+</html>"""
+
+
+# ---------- Overdue detection ----------
+
+def check_overdue_invoices(db: Session) -> list[Invoice]:
+    """Mark all unpaid invoices past their due date as 'overdue'.
+
+    Returns the list of invoices that were newly marked overdue.
+    """
+    today = date.today()
+    overdue_candidates = (
+        db.query(Invoice)
+        .filter(
+            Invoice.status.in_(["issued", "partially_paid"]),
+            Invoice.due_date < today,
+        )
+        .all()
+    )
+
+    newly_overdue: list[Invoice] = []
+    for inv in overdue_candidates:
+        inv.status = "overdue"
+        newly_overdue.append(inv)
+
+    if newly_overdue:
+        db.commit()
+
+    return newly_overdue
+
+
+def get_overdue_summary(db: Session) -> dict:
+    """Return a summary of overdue invoices for the finance dashboard."""
+    overdue_invoices = (
+        db.query(Invoice)
+        .filter(Invoice.status == "overdue")
+        .all()
+    )
+    total_overdue = sum(
+        (inv.total_amount - compute_amount_paid(inv, db=db) for inv in overdue_invoices),
+        Decimal("0.00"),
+    )
+    return {
+        "overdue_invoices_count": len(overdue_invoices),
+        "overdue_amount": _quantize(total_overdue),
+        "overdue_invoices": [
+            {
+                "id": inv.id,
+                "invoice_number": inv.invoice_number,
+                "customer_name": inv.customer.name if inv.customer else "N/A",
+                "total_amount": str(inv.total_amount),
+                "due_date": inv.due_date.isoformat(),
+                "outstanding": str(compute_outstanding(inv, db=db)),
+            }
+            for inv in overdue_invoices
+        ],
+    }

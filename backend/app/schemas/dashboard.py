@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 from datetime import date, datetime
+from typing import Any
 from pydantic import BaseModel, model_validator
 
 
@@ -27,6 +28,15 @@ class RecentPayment(BaseModel):
     created_at: datetime
 
 
+class OverdueInvoice(BaseModel):
+    id: int
+    invoice_number: str
+    customer_name: str
+    total_amount: str
+    due_date: str
+    outstanding: str
+
+
 class DashboardSummary(BaseModel):
     total_customers: int
     active_subscriptions: int
@@ -38,6 +48,10 @@ class DashboardSummary(BaseModel):
     total_payments_received: Decimal
     recent_subscriptions: list[RecentSubscription]
     recent_payments: list[RecentPayment]
+    # Overdue metrics
+    overdue_invoices_count: int = 0
+    overdue_amount: Decimal = Decimal("0.00")
+    overdue_invoices: list[OverdueInvoice] = []
 
     @model_validator(mode="after")
     def sync_aliases(self):
