@@ -29,12 +29,18 @@ export const realApi: ApiService = {
     create: (data) => request<Product>('/products', { method: 'POST', body: data }),
     update: (id, data) => request<Product>(`/products/${id}`, { method: 'PUT', body: data }),
     remove: (id) => request<void>(`/products/${id}`, { method: 'DELETE' }),
-    addVariant: (productId, data) =>
-      request<Product>(`/products/${productId}/variants`, { method: 'POST', body: data }),
-    updateVariant: (productId, variantId, data) =>
-      request<Product>(`/products/${productId}/variants/${variantId}`, { method: 'PUT', body: data }),
-    removeVariant: (productId, variantId) =>
-      request<Product>(`/products/${productId}/variants/${variantId}`, { method: 'DELETE' }),
+    addVariant: async (productId, data) => {
+      await request(`/products/${productId}/variants`, { method: 'POST', body: data })
+      return request<Product>(`/products/${productId}`)
+    },
+    updateVariant: async (productId, variantId, data) => {
+      await request(`/products/${productId}/variants/${variantId}`, { method: 'PUT', body: data })
+      return request<Product>(`/products/${productId}`)
+    },
+    removeVariant: async (productId, variantId) => {
+      await request(`/products/${productId}/variants/${variantId}`, { method: 'DELETE' })
+      return request<Product>(`/products/${productId}`)
+    },
   },
 
   plans: {
@@ -65,8 +71,10 @@ export const realApi: ApiService = {
     get: (id) => request<Invoice>(`/invoices/${id}`),
     generate: (subscriptionId) =>
       request<Invoice>('/invoices', { method: 'POST', body: { subscription_id: subscriptionId } }),
-    recordPayment: (invoiceId, data) =>
-      request<Invoice>(`/invoices/${invoiceId}/payments`, { method: 'POST', body: data }),
+    recordPayment: async (invoiceId, data) => {
+      await request(`/invoices/${invoiceId}/payments`, { method: 'POST', body: data })
+      return request<Invoice>(`/invoices/${invoiceId}`)
+    },
   },
 
   payments: {

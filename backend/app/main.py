@@ -4,15 +4,28 @@ FastAPI application entry point.  Registers all routers and configures
 CORS for the React frontend.
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import auth, customers, dashboard, invoices, payments, plans, products, subscriptions
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        from app.seed import seed_database
+        seed_database()
+    except Exception as e:
+        print(f"Startup notice: {e}")
+    yield
+
+
 app = FastAPI(
     title="Brightloop",
     description="Subscription management system — Odoo × Make-A-Ton hackathon",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS — allow the Vite React dev server and common local origins

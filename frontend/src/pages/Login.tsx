@@ -4,7 +4,6 @@ import { Logo } from '../components/layout/Logo'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useAuth } from '../hooks/useAuth'
-import { USE_MOCK } from '../services/api'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -96,12 +95,26 @@ export default function Login() {
             </Button>
           </form>
 
-          {USE_MOCK && (
-            <p className="mt-6 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
-              Demo mode is on. Sign in with <span className="font-medium">admin@brightloop.com</span> and{' '}
-              <span className="font-medium">admin123</span>.
+          <div className="mt-6 rounded-md bg-gray-50 p-3 text-xs text-gray-600 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-gray-800">Default Credentials</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('admin@brightloop.com')
+                  setPassword('admin123')
+                }}
+                className="font-medium text-brand-700 hover:text-brand-900 hover:underline cursor-pointer"
+              >
+                Auto-fill
+              </button>
+            </div>
+            <p className="mt-1 text-gray-600">
+              Email: <span className="font-mono font-medium text-gray-900">admin@brightloop.com</span>
+              <br />
+              Password: <span className="font-mono font-medium text-gray-900">admin123</span>
             </p>
-          )}
+          </div>
         </div>
       </div>
     </div>
