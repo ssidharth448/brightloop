@@ -43,7 +43,7 @@ def seed_database(db: Session | None = None) -> None:
                     role="admin",
                 ),
             )
-            print("✓ Created default admin user: admin@brightloop.com / admin123")
+            print("+ Created default admin user: admin@brightloop.com / admin123")
 
         staff_email = "user@brightloop.com"
         existing_staff = db.query(User).filter(User.email == staff_email).first()
@@ -57,7 +57,7 @@ def seed_database(db: Session | None = None) -> None:
                     role="staff",
                 ),
             )
-            print("✓ Created default staff user: user@brightloop.com / user123")
+            print("+ Created default staff user: user@brightloop.com / user123")
 
         # Check if products already seeded
         from app.models.product import Product
@@ -240,7 +240,7 @@ def seed_database(db: Session | None = None) -> None:
             ),
         )
 
-        print("✓ Database successfully seeded with sample products, plans, customers, subscriptions, invoices, and payments!")
+        print("+ Database successfully seeded with sample products, plans, customers, subscriptions, invoices, and payments!")
 
     finally:
         if close_db:

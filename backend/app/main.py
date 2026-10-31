@@ -26,6 +26,8 @@ from app.routes import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
+        from app.core.database import Base, engine
+        Base.metadata.create_all(bind=engine)
         from app.seed import seed_database
         seed_database()
     except Exception as e:
