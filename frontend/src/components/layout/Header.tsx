@@ -24,7 +24,12 @@ export function Header({ onMenu }: { onMenu: () => void }) {
       </div>
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium leading-tight text-gray-900">{user?.name}</p>
+          <div className="flex items-center justify-end gap-1.5">
+            <p className="text-sm font-medium leading-tight text-gray-900">{user?.name}</p>
+            <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-800">
+              {user?.role || 'staff'}
+            </span>
+          </div>
           <p className="text-xs text-gray-500">{user?.email}</p>
         </div>
         <div className="flex size-9 items-center justify-center rounded-full bg-brand-900 text-sm font-semibold text-brand-400" aria-hidden="true">

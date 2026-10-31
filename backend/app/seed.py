@@ -30,7 +30,7 @@ def seed_database(db: Session | None = None) -> None:
         close_db = True
 
     try:
-        # 1. Admin User
+        # 1. Admin & Staff Users
         admin_email = "admin@brightloop.com"
         existing_admin = db.query(User).filter(User.email == admin_email).first()
         if not existing_admin:
@@ -44,6 +44,20 @@ def seed_database(db: Session | None = None) -> None:
                 ),
             )
             print("✓ Created default admin user: admin@brightloop.com / admin123")
+
+        staff_email = "user@brightloop.com"
+        existing_staff = db.query(User).filter(User.email == staff_email).first()
+        if not existing_staff:
+            register_user(
+                db,
+                UserRegister(
+                    name="Alex Morgan",
+                    email=staff_email,
+                    password="user123",
+                    role="staff",
+                ),
+            )
+            print("✓ Created default staff user: user@brightloop.com / user123")
 
         # Check if products already seeded
         from app.models.product import Product

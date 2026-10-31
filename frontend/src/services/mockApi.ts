@@ -118,6 +118,13 @@ export const mockApi: ApiService = {
     tokenStore.set(token)
     return { token, user: clone(demoUser) }
   },
+  async register(data) {
+    await delay(500)
+    const newUser: User = { id: `user_${Date.now()}`, name: data.name, email: data.email, role: data.role || 'staff' }
+    const token = 'mock-token'
+    tokenStore.set(token)
+    return { token, user: newUser }
+  },
   async me() {
     await delay(150)
     requireAuth()

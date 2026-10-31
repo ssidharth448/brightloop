@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, setUnauthorizedHandler, tokenStore } from '../services/api'
-import type { User } from '../types'
+import type { User, UserRegisterInput } from '../types'
 import { AuthContext } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -37,11 +37,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.user)
   }, [])
 
+  const register = useCallback(async (data: UserRegisterInput) => {
+    const result = await api.register(data)
+    setUser(result.user)
+  }, [])
+
   const logout = useCallback(() => {
     tokenStore.clear()
     setUser(null)
   }, [])
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout])
+  const value = useMemo(
+    () => ({ user, loading, login, register, logout }),
+    [user, loading, login, register, logout]
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

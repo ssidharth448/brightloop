@@ -13,6 +13,7 @@ export interface User {
   id: ID
   email: string
   name: string
+  role?: string
 }
 
 export interface Variant {
@@ -109,10 +110,12 @@ export interface PlanInput { name: string; product_id: ID; price: number; interv
 export interface CustomerInput { name: string; email: string; phone: string; company: string }
 export interface SubscriptionInput { customer_id: ID; plan_id: ID; start_date: string }
 export interface PaymentInput { amount: number; method: PaymentMethod }
+export interface UserRegisterInput { name: string; email: string; password: string; role?: 'admin' | 'staff' }
 
 // ---- The contract both realApi.ts and mockApi.ts implement ----
 export interface ApiService {
   login(email: string, password: string): Promise<{ token: string; user: User }>
+  register(data: UserRegisterInput): Promise<{ token: string; user: User }>
   me(): Promise<User>
   dashboard(): Promise<DashboardSummary>
   products: {

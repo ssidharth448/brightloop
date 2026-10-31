@@ -20,6 +20,18 @@ export const realApi: ApiService = {
     const user = data.user ?? (await request<User>('/auth/me'))
     return { token, user }
   },
+  async register(data) {
+    await request<User>('/auth/register', {
+      method: 'POST',
+      body: {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        role: data.role || 'staff',
+      },
+    })
+    return this.login(data.email, data.password)
+  },
   me: () => request<User>('/auth/me'),
   dashboard: () => request<DashboardSummary>('/dashboard/summary'),
 
