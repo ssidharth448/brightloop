@@ -1,9 +1,9 @@
 # Current State — What's Done & What's Left
 
-> **Last updated:** 2026-10-31T13:45 IST  
-> **Branch:** `feature/backend` (commit `50d91da`)  
+> **Last updated:** 2026-10-31T14:18 IST  
+> **Branch:** `feature/backend`  
 > **PR URL:** `https://github.com/ssidharth448/brightloop/pull/new/feature/backend`  
-> **Git status:** Pushed to origin/feature/backend (clean working tree).
+> **Git status:** Merged latest main (PR #6 from frontend), added full frontend contract compatibility, 8/8 tests passing.
 
 ---
 
@@ -14,30 +14,30 @@
 | **Core config** | ✅ Done | `config.py` — DATABASE_URL, SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, DEFAULT_TAX_RATE |
 | **Security (JWT/bcrypt)** | ✅ Done | `security.py` — native bcrypt hash/verify + python-jose JWT encode/decode |
 | **Dependencies (auth guards)** | ✅ Done | `dependencies.py` — `get_current_user`, `require_admin`, `require_active_user` |
-| **Schemas — all 8 modules** | ✅ Done | auth, product, plan, customer, subscription, invoice, payment, dashboard |
-| **Service — auth** | ✅ Done | register, authenticate, token generation |
-| **Service — product** | ✅ Done | CRUD products + variants (soft-delete) |
-| **Service — plan** | ✅ Done | CRUD plans (soft-delete) |
-| **Service — customer** | ✅ Done | CRUD customers + deactivate |
-| **Service — subscription** | ✅ Done | Create, list, get, update, activate, pause, resume, cancel with state machine |
-| **Service — invoice** | ✅ Done | Create with line items, Decimal tax calc, amount_paid/outstanding via DB query |
-| **Service — payment** | ✅ Done | Record payment, balance validation, invoice status sync |
-| **Service — dashboard** | ✅ Done | MRR (normalized), totals, outstanding, recent subs/payments |
-| **Routes — auth** | ✅ Done | POST register, POST login, GET me |
-| **Routes — products** | ✅ Done | CRUD + variant CRUD nested under products |
-| **Routes — plans** | ✅ Done | CRUD |
-| **Routes — customers** | ✅ Done | CRUD + deactivate |
+| **Schemas — all 8 modules** | ✅ Done | Full bidirectional alias support for frontend types (`active`, `interval`, `mrr`, `balance`, `number`, `user` in login) |
+| **Service — auth** | ✅ Done | register, authenticate, token + user generation |
+| **Service — product** | ✅ Done | CRUD products + variants (soft-delete, variants nested) |
+| **Service — plan** | ✅ Done | CRUD plans (supports `interval` alias, soft-delete, enriched with `product_name`) |
+| **Service — customer** | ✅ Done | CRUD customers (supports `company` alias, soft-delete) |
+| **Service — subscription** | ✅ Done | Create, list, get, update, activate, pause, resume, cancel with state machine; enriched with customer/plan names |
+| **Service — invoice** | ✅ Done | One-click generate from subscription or custom items, Decimal tax calc, DB-backed payment queries |
+| **Service — payment** | ✅ Done | Record payment, balance validation, invoice status sync, enriched with invoice/customer names |
+| **Service — dashboard** | ✅ Done | MRR (normalized), totals, outstanding, recent subs/payments (returns both `mrr` and `monthly_recurring_revenue`) |
+| **Routes — auth** | ✅ Done | POST register, POST login (returns token + user), GET me |
+| **Routes — products** | ✅ Done | GET/POST/PUT/PATCH/DELETE products & variants |
+| **Routes — plans** | ✅ Done | GET/POST/PUT/PATCH/DELETE plans |
+| **Routes — customers** | ✅ Done | GET/POST/PUT/PATCH/DELETE customers |
 | **Routes — subscriptions** | ✅ Done | CRUD + activate, pause, resume, cancel |
-| **Routes — invoices** | ✅ Done | Create, list, get (with computed paid/outstanding) |
+| **Routes — invoices** | ✅ Done | Create/generate, list, get (with computed paid/outstanding/balance) |
 | **Routes — payments** | ✅ Done | Create (on invoice), list, get |
 | **Routes — dashboard** | ✅ Done | GET /api/dashboard/summary |
 | **main.py** | ✅ Done | FastAPI app with CORS + all 8 routers registered |
 | **.env.example** | ✅ Done | All required env vars documented |
 | **requirements.txt** | ✅ Done | All dependencies pinned |
-| **Tests** | ✅ Done | 7/7 passing — auth (5 tests) + full e2e workflow (2 tests) |
-| **HANDOFF.md (repo root)** | ✅ Done | `docs/HANDOFF.md` |
-| **Handoff Knowledge Base** | ✅ Done | Complete set in `docs/handoff/` (6 documents) |
-| **Git commit/push** | ✅ Done | Committed and pushed to `feature/backend` |
+| **Tests** | ✅ Done | 8/8 passing — auth unit tests + e2e workflow + frontend compatibility tests |
+| **HANDOFF.md (repo root)** | ✅ Done | `docs/HANDOFF.md` updated |
+| **Handoff Knowledge Base** | ✅ Done | Complete set in `docs/handoff/` |
+| **Git commit/push** | ✅ Done | Merged main, committed, and pushed to origin/feature/backend |
 
 ---
 

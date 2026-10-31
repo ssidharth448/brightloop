@@ -231,8 +231,88 @@ def test_complete_subscription_workflow(db_session):
     assert dash.total_customers == 1
     assert dash.active_subscriptions == 1
     assert dash.monthly_recurring_revenue == Decimal("1200.00")
+    assert dash.mrr == Decimal("1200.00")
     assert dash.total_invoices == 1
     assert dash.outstanding_invoice_amount == Decimal("0.00")
+    assert dash.outstanding_amount == Decimal("0.00")
     assert dash.total_payments_received == Decimal("1180.00")
     assert len(dash.recent_subscriptions) == 1
     assert len(dash.recent_payments) == 2
+
+
+def test_frontend_compatibility(db_session):
+    # Tests frontend-specific aliases and one-click subscription invoice generation
+    admin = register(
+        UserRegister(
+            name="Frontend Admin",
+            email="fe_admin@brightloop.com",
+            password="Password123!",
+            role="admin",
+        ),
+        db=db_session,
+    )
+
+    # 1. Login returns token and user
+    login_res = login(UserLogin(email="fe_admin@brightloop.com", password="Password123!"), db=db_session)
+    assert login_res.token != ""
+    assert login_res.user is not None
+    assert login_res.user.active is True
+
+    # 2. Product creation with 'active' alias
+    prod = create_product_route(
+        ProductCreate(name="Cloud Platform", description="Platform", active=True, base_price=Decimal("500.00")),
+        db=db_session,
+        _user=admin,
+    )
+    assert prod.active is True
+
+    # 3. Plan creation with 'interval' alias
+    plan = create_plan_route(
+        PlanCreate(
+            product_id=prod.id,
+            name="Standard Plan",
+            price=Decimal("500.00"),
+            interval="monthly",
+            active=True,
+        ),
+        db=db_session,
+        _user=admin,
+    )
+    assert plan.interval == "monthly"
+    assert plan.active is True
+    assert plan.product_name == "Cloud Platform"
+
+    # 4. Customer with 'company'
+    cust = create_customer_route(
+        CustomerCreate(
+            name="Jane Doe",
+            email="jane@example.com",
+            phone="+919876543210",
+            company="Jane Enterprises",
+        ),
+        db=db_session,
+        _user=admin,
+    )
+    assert cust.id is not None
+
+    # 5. Subscription
+    sub = create_subscription_route(
+        SubscriptionCreate(customer_id=cust.id, plan_id=plan.id),
+        db=db_session,
+        _user=admin,
+    )
+    assert sub.customer_name == "Jane Doe"
+    assert sub.plan_name == "Standard Plan"
+    assert sub.price == Decimal("500.00")
+
+    # 6. Auto-generate invoice directly from subscription_id
+    inv = create_invoice_route(
+        InvoiceCreate(subscription_id=sub.id),
+        db=db_session,
+        _user=admin,
+    )
+    assert inv["customer_id"] == cust.id
+    assert inv["customer_name"] == "Jane Doe"
+    assert inv["subtotal"] == Decimal("500.00")
+    assert inv["number"] != ""
+    assert len(inv["items"]) == 1

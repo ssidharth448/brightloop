@@ -42,7 +42,8 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     token = create_token_for_user(user)
-    return Token(access_token=token)
+    user_out = UserOut.model_validate(user)
+    return Token(access_token=token, token=token, user=user_out)
 
 
 @router.get("/me", response_model=UserOut)

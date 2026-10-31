@@ -95,8 +95,9 @@ def get_dashboard_summary(db: Session) -> DashboardSummary:
     recent_subscriptions = [
         RecentSubscription(
             id=s.id,
-            customer_name=s.customer.name,
-            plan_name=s.plan.name,
+            customer_name=s.customer.name if s.customer else "",
+            plan_name=s.plan.name if s.plan else "",
+            price=s.plan.price if s.plan else Decimal("0.00"),
             status=s.status,
             start_date=s.start_date,
             created_at=s.created_at,
@@ -114,9 +115,11 @@ def get_dashboard_summary(db: Session) -> DashboardSummary:
     recent_payments = [
         RecentPayment(
             id=p.id,
-            invoice_number=p.invoice.invoice_number,
+            invoice_number=p.invoice.invoice_number if p.invoice else "",
+            customer_name=p.invoice.customer.name if p.invoice and p.invoice.customer else "",
             amount=p.amount,
             payment_method=p.payment_method,
+            method=p.payment_method,
             status=p.status,
             paid_at=p.paid_at,
             created_at=p.created_at,

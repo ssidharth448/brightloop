@@ -5,12 +5,22 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import require_active_user
+from app.models.payment import Payment
 from app.models.user import User
 from app.schemas.payment import PaymentCreate, PaymentOut
 from app.services.invoice_service import get_invoice
 from app.services.payment_service import get_payment, list_payments, record_payment
 
 router = APIRouter(tags=["Payments"])
+
+
+def _enrich_payment(payment: Payment) -> PaymentOut:
+    out = PaymentOut.model_validate(payment)
+    if payment.invoice:
+        out.invoice_number = payment.invoice.invoice_number
+        if payment.invoice.customer:
+            out.customer_name = payment.invoice.customer.name
+    return out
 
 
 @router.post(
@@ -31,7 +41,8 @@ def create_payment_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
         )
     try:
-        return record_payment(db, invoice, data)
+        payment = record_payment(db, invoice, data)
+        return _enrich_payment(payment)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
@@ -47,7 +58,8 @@ def list_payments_route(
     _user: User = Depends(require_active_user),
 ):
     """List all payments with optional invoice filter."""
-    return list_payments(db, skip=skip, limit=limit, invoice_id=invoice_id)
+    payments = list_payments(db, skip=skip, limit=limit, invoice_id=invoice_id)
+    return [_enrich_payment(p) for p in payments]
 
 
 @router.get("/api/payments/{payment_id}", response_model=PaymentOut)
@@ -62,4 +74,4 @@ def get_payment_route(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found"
         )
-    return payment
+    return _enrich_payment(payment)

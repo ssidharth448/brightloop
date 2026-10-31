@@ -14,7 +14,8 @@ from app.schemas.product import (
 # ---------- Products ----------
 
 def create_product(db: Session, data: ProductCreate) -> Product:
-    product = Product(**data.model_dump())
+    dump = data.model_dump(exclude={"base_price", "active"}, exclude_unset=True)
+    product = Product(**dump)
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -40,7 +41,7 @@ def get_product(db: Session, product_id: int) -> Product | None:
 def update_product(
     db: Session, product: Product, data: ProductUpdate
 ) -> Product:
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude={"base_price", "active"}, exclude_unset=True)
     for field, value in update_data.items():
         setattr(product, field, value)
     db.commit()
@@ -59,7 +60,8 @@ def delete_product(db: Session, product: Product) -> None:
 def create_variant(
     db: Session, product_id: int, data: VariantCreate
 ) -> ProductVariant:
-    variant = ProductVariant(product_id=product_id, **data.model_dump())
+    dump = data.model_dump(exclude={"extra_price", "active"}, exclude_unset=True)
+    variant = ProductVariant(product_id=product_id, **dump)
     db.add(variant)
     db.commit()
     db.refresh(variant)
@@ -84,7 +86,7 @@ def get_variant(db: Session, variant_id: int) -> ProductVariant | None:
 def update_variant(
     db: Session, variant: ProductVariant, data: VariantUpdate
 ) -> ProductVariant:
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude={"extra_price", "active"}, exclude_unset=True)
     for field, value in update_data.items():
         setattr(variant, field, value)
     db.commit()

@@ -7,7 +7,8 @@ from app.schemas.customer import CustomerCreate, CustomerUpdate
 
 
 def create_customer(db: Session, data: CustomerCreate) -> Customer:
-    customer = Customer(**data.model_dump())
+    dump = data.model_dump(exclude={"company"}, exclude_unset=True)
+    customer = Customer(**dump)
     db.add(customer)
     db.commit()
     db.refresh(customer)
@@ -33,7 +34,7 @@ def get_customer(db: Session, customer_id: int) -> Customer | None:
 def update_customer(
     db: Session, customer: Customer, data: CustomerUpdate
 ) -> Customer:
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude={"company"}, exclude_unset=True)
     for field, value in update_data.items():
         setattr(customer, field, value)
     db.commit()

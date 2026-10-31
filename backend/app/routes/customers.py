@@ -27,7 +27,8 @@ def create_customer_route(
 ):
     """Register a new customer."""
     try:
-        return create_customer(db, data)
+        customer = create_customer(db, data)
+        return CustomerOut.model_validate(customer)
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -45,7 +46,8 @@ def list_customers_route(
     _user: User = Depends(require_active_user),
 ):
     """List all customers."""
-    return list_customers(db, skip=skip, limit=limit, active_only=active_only)
+    customers = list_customers(db, skip=skip, limit=limit, active_only=active_only)
+    return [CustomerOut.model_validate(c) for c in customers]
 
 
 @router.get("/{customer_id}", response_model=CustomerOut)
@@ -60,10 +62,11 @@ def get_customer_route(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found"
         )
-    return customer
+    return CustomerOut.model_validate(customer)
 
 
 @router.put("/{customer_id}", response_model=CustomerOut)
+@router.patch("/{customer_id}", response_model=CustomerOut)
 def update_customer_route(
     customer_id: int,
     data: CustomerUpdate,
@@ -77,7 +80,8 @@ def update_customer_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found"
         )
     try:
-        return update_customer(db, customer, data)
+        updated = update_customer(db, customer, data)
+        return CustomerOut.model_validate(updated)
     except IntegrityError:
         db.rollback()
         raise HTTPException(

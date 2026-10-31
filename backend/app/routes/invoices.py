@@ -21,8 +21,17 @@ router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
 def _enrich(invoice, db: Session | None = None) -> dict:
     """Add computed amount_paid and outstanding_balance to response."""
     data = InvoiceOut.model_validate(invoice).model_dump()
-    data["amount_paid"] = compute_amount_paid(invoice, db=db)
-    data["outstanding_balance"] = compute_outstanding(invoice, db=db)
+    paid = compute_amount_paid(invoice, db=db)
+    outstanding = compute_outstanding(invoice, db=db)
+    data["amount_paid"] = paid
+    data["outstanding_balance"] = outstanding
+    data["balance"] = outstanding
+    data["number"] = invoice.invoice_number
+    data["discount"] = invoice.discount_amount
+    data["tax"] = invoice.tax_amount
+    data["total"] = invoice.total_amount
+    if invoice.customer:
+        data["customer_name"] = invoice.customer.name
     return data
 
 

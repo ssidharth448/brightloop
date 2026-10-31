@@ -41,7 +41,8 @@ def create_product_route(
     _user: User = Depends(require_active_user),
 ):
     """Create a new product."""
-    return create_product(db, data)
+    product = create_product(db, data)
+    return ProductOut.model_validate(product)
 
 
 @router.get("", response_model=list[ProductOut])
@@ -53,7 +54,8 @@ def list_products_route(
     _user: User = Depends(require_active_user),
 ):
     """List all products."""
-    return list_products(db, skip=skip, limit=limit, active_only=active_only)
+    products = list_products(db, skip=skip, limit=limit, active_only=active_only)
+    return [ProductOut.model_validate(p) for p in products]
 
 
 @router.get("/{product_id}", response_model=ProductOut)
@@ -66,10 +68,11 @@ def get_product_route(
     product = get_product(db, product_id)
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    return product
+    return ProductOut.model_validate(product)
 
 
 @router.put("/{product_id}", response_model=ProductOut)
+@router.patch("/{product_id}", response_model=ProductOut)
 def update_product_route(
     product_id: int,
     data: ProductUpdate,
@@ -80,7 +83,8 @@ def update_product_route(
     product = get_product(db, product_id)
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    return update_product(db, product, data)
+    updated = update_product(db, product, data)
+    return ProductOut.model_validate(updated)
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -115,7 +119,8 @@ def create_variant_route(
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     try:
-        return create_variant(db, product_id, data)
+        variant = create_variant(db, product_id, data)
+        return VariantOut.model_validate(variant)
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -135,10 +140,12 @@ def list_variants_route(
     product = get_product(db, product_id)
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    return list_variants(db, product_id, active_only=active_only)
+    variants = list_variants(db, product_id, active_only=active_only)
+    return [VariantOut.model_validate(v) for v in variants]
 
 
 @router.put("/{product_id}/variants/{variant_id}", response_model=VariantOut)
+@router.patch("/{product_id}/variants/{variant_id}", response_model=VariantOut)
 def update_variant_route(
     product_id: int,
     variant_id: int,
@@ -151,7 +158,8 @@ def update_variant_route(
     if variant is None or variant.product_id != product_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variant not found")
     try:
-        return update_variant(db, variant, data)
+        updated = update_variant(db, variant, data)
+        return VariantOut.model_validate(updated)
     except IntegrityError:
         db.rollback()
         raise HTTPException(

@@ -26,6 +26,18 @@ from app.services.subscription_service import (
 router = APIRouter(prefix="/api/subscriptions", tags=["Subscriptions"])
 
 
+def _enrich_sub(sub) -> SubscriptionOut:
+    out = SubscriptionOut.model_validate(sub)
+    if sub.customer:
+        out.customer_name = sub.customer.name
+    if sub.plan:
+        out.plan_name = sub.plan.name
+        out.price = sub.plan.price
+        out.billing_interval = sub.plan.billing_interval
+        out.interval = sub.plan.billing_interval
+    return out
+
+
 @router.post("", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED)
 def create_subscription_route(
     data: SubscriptionCreate,
@@ -34,7 +46,8 @@ def create_subscription_route(
 ):
     """Create a new subscription (active by default)."""
     try:
-        return create_subscription(db, data)
+        sub = create_subscription(db, data)
+        return _enrich_sub(sub)
     except (ValueError, IntegrityError) as exc:
         db.rollback()
         raise HTTPException(
@@ -53,13 +66,14 @@ def list_subscriptions_route(
     _user: User = Depends(require_active_user),
 ):
     """List subscriptions with optional filters."""
-    return list_subscriptions(
+    subs = list_subscriptions(
         db,
         skip=skip,
         limit=limit,
         customer_id=customer_id,
         status=subscription_status,
     )
+    return [_enrich_sub(s) for s in subs]
 
 
 @router.get("/{subscription_id}", response_model=SubscriptionOut)
@@ -74,7 +88,7 @@ def get_subscription_route(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found"
         )
-    return sub
+    return _enrich_sub(sub)
 
 
 @router.put("/{subscription_id}", response_model=SubscriptionOut)
@@ -90,7 +104,8 @@ def update_subscription_route(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found"
         )
-    return update_subscription(db, sub, data)
+    updated = update_subscription(db, sub, data)
+    return _enrich_sub(updated)
 
 
 @router.post("/{subscription_id}/activate", response_model=SubscriptionOut)
@@ -106,7 +121,8 @@ def activate_subscription_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found"
         )
     try:
-        return activate_subscription(db, sub)
+        updated = activate_subscription(db, sub)
+        return _enrich_sub(updated)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -124,7 +140,8 @@ def pause_subscription_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found"
         )
     try:
-        return pause_subscription(db, sub)
+        updated = pause_subscription(db, sub)
+        return _enrich_sub(updated)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -142,7 +159,8 @@ def resume_subscription_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found"
         )
     try:
-        return resume_subscription(db, sub)
+        updated = resume_subscription(db, sub)
+        return _enrich_sub(updated)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -160,6 +178,7 @@ def cancel_subscription_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found"
         )
     try:
-        return cancel_subscription(db, sub)
+        updated = cancel_subscription(db, sub)
+        return _enrich_sub(updated)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))

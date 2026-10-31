@@ -7,7 +7,8 @@ from app.schemas.plan import PlanCreate, PlanUpdate
 
 
 def create_plan(db: Session, data: PlanCreate) -> Plan:
-    plan = Plan(**data.model_dump())
+    dump = data.model_dump(exclude={"interval", "active"}, exclude_unset=True)
+    plan = Plan(**dump)
     db.add(plan)
     db.commit()
     db.refresh(plan)
@@ -31,7 +32,7 @@ def get_plan(db: Session, plan_id: int) -> Plan | None:
 
 
 def update_plan(db: Session, plan: Plan, data: PlanUpdate) -> Plan:
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude={"interval", "active"}, exclude_unset=True)
     for field, value in update_data.items():
         setattr(plan, field, value)
     db.commit()

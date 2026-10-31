@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.payment import Payment
+from app.models.subscription import Subscription
 from app.schemas.invoice import InvoiceCreate
 
 
@@ -29,20 +30,50 @@ def create_invoice(db: Session, data: InvoiceCreate) -> Invoice:
     issue = data.issue_date or date.today()
     due = data.due_date or (issue + timedelta(days=30))
 
-    # Build line items and compute subtotal
+    customer_id = data.customer_id
     items: list[InvoiceItem] = []
     subtotal = Decimal("0.00")
-    for item_data in data.items:
-        line_total = _quantize(Decimal(str(item_data.unit_price)) * item_data.quantity)
-        items.append(
-            InvoiceItem(
-                description=item_data.description,
-                quantity=item_data.quantity,
-                unit_price=item_data.unit_price,
-                line_total=line_total,
+
+    # If subscription is provided, resolve customer and default line item if not supplied
+    if data.subscription_id is not None:
+        sub = db.get(Subscription, data.subscription_id)
+        if sub is None:
+            raise ValueError(f"Subscription {data.subscription_id} not found")
+        if customer_id is None:
+            customer_id = sub.customer_id
+        if not data.items and sub.plan:
+            unit_price = _quantize(sub.plan.price)
+            items.append(
+                InvoiceItem(
+                    description=f"{sub.plan.name} ({sub.plan.billing_interval.title()})",
+                    quantity=1,
+                    unit_price=unit_price,
+                    line_total=unit_price,
+                )
             )
-        )
-        subtotal += line_total
+            subtotal += unit_price
+
+    if customer_id is None:
+        raise ValueError("customer_id is required when creating an invoice")
+
+    # Build line items and compute subtotal if items explicitly provided
+    if data.items:
+        items = []
+        subtotal = Decimal("0.00")
+        for item_data in data.items:
+            line_total = _quantize(Decimal(str(item_data.unit_price)) * item_data.quantity)
+            items.append(
+                InvoiceItem(
+                    description=item_data.description,
+                    quantity=item_data.quantity,
+                    unit_price=item_data.unit_price,
+                    line_total=line_total,
+                )
+            )
+            subtotal += line_total
+
+    if not items:
+        raise ValueError("Invoice must contain at least one line item")
 
     subtotal = _quantize(subtotal)
     discount = _quantize(Decimal(str(data.discount_amount)))
@@ -61,7 +92,7 @@ def create_invoice(db: Session, data: InvoiceCreate) -> Invoice:
 
     invoice = Invoice(
         invoice_number=_next_invoice_number(),
-        customer_id=data.customer_id,
+        customer_id=customer_id,
         subscription_id=data.subscription_id,
         issue_date=issue,
         due_date=due,
